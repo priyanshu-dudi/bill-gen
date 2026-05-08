@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Bill Generator</title>
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --bg: #f3f4f6;
+            --card: #ffffff;
+            --text: #1f2937;
+            --border: #e5e7eb;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+        .panel {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            width: 400px;
+        }
+        .bill-preview {
+            width: 500px;
+        }
+        h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .row {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        button:hover { background-color: #4338ca; }
+        .btn-print { background-color: #10b981; }
+        .btn-print:hover { background-color: #059669; }
+        
+        /* Bill Styles */
+        .bill-header { text-align: center; margin-bottom: 20px; }
+        .bill-header h1 { margin: 0; font-size: 1.5rem; text-transform: uppercase; }
+        .bill-header p { margin: 2px 0; font-size: 0.9rem; color: #4b5563; }
+        
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border-bottom: 1px solid var(--border); padding: 10px; text-align: left; font-size: 0.9rem; }
+        th { background-color: #f9fafb; }
+        .text-right { text-align: right; }
+        
+        .totals-container { border-top: 2px solid var(--border); padding-top: 10px; }
+        .totals-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.95rem; }
+        .grand-total { font-weight: bold; font-size: 1.2rem; color: var(--primary); margin-top: 10px; }
+        
+        .delete-btn { color: red; cursor: pointer; font-weight: bold; font-size: 1.2rem; border: none; background: none; width: auto;}
+
+        /* Print Settings */
+        @media print {
+            body { background-color: white; padding: 0; display: block; }
+            .controls-panel { display: none; }
+            .panel { box-shadow: none; border: none; width: 100%; max-width: 100%; padding: 0; }
+            .hide-on-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LEFT PANEL: Settings & Product Entry -->
+    <div class="panel controls-panel">
+        <h2>Store Settings</h2>
+        <div class="input-group">
+            <label>Store Name</label>
+            <input type="text" id="setStoreName" value="My Awesome Store" oninput="updateBill()">
+        </div>
+        <div class="row">
+            <div class="input-group" style="flex: 1;">
+                <label>GST Number</label>
+                <input type="text" id="setGst" value="27AAAAA0000A1Z5" oninput="updateBill()">
+            </div>
+            <div class="input-group" style="flex: 1;">
+                <label>Date</label>
+                <input type="date" id="setDate" onchange="updateBill()">
+            </div>
+        </div>
+
+        <h2 style="margin-top: 20px;">Add Product</h2>
+        <div class="input-group">
+            <label>Product Name</label>
+            <input type="text" id="prodName" placeholder="e.g. Wireless Mouse">
+        </div>
+        <div class="row">
+            <div class="input-group" style="flex: 1;">
+                <label>MRP (Price)</label>
+                <input type="number" id="prodPrice" placeholder="0.00" min="0">
+            </div>
+            <div class="input-group" style="flex: 1;">
+                <label>Discount (%)</label>
+                <input type="number" id="prodDiscount" placeholder="0" min="0" max="100">
+            </div>
+        </div>
+        <button onclick="addProduct()">Add Product to Bill</button>
+        <button class="btn-print" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+
+    <!-- RIGHT PANEL: Bill Preview -->
+    <div class="panel bill-preview">
+        <div class="bill-header">
+            <h1 id="billStoreName">My Awesome Store</h1>
+            <p>GSTIN: <span id="billGst">27AAAAA0000A1Z5</span></p>
+            <p>Date: <span id="billDate"></span></p>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th class="text-right">MRP</th>
+                    <th class="text-right">Disc.</th>
+                    <th class="text-right">Total</th>
+                    <th class="hide-on-print text-right"></th>
+                </tr>
+            </thead>
+            <tbody id="billTableBody">
+                <!-- Products will appear here -->
+            </tbody>
+        </table>
+
+        <div class="totals-container">
+            <div class="totals-row">
+                <span>Subtotal:</span>
+                <span id="billSubtotal">₹0.00</span>
+            </div>
+            <div class="totals-row" style="color: #ef4444;">
+                <span>Total Discount Saved:</span>
+                <span id="billTotalDiscount">-₹0.00</span>
+            </div>
+            <div class="totals-row grand-total">
+                <span>Grand Total:</span>
+                <span id="billGrandTotal">₹0.00</span>
+            </div>
+        </div>
+        <p style="text-align: center; margin-top: 30px; font-size: 0.8rem; color: #6b7280;">Thank you for your business!</p>
+    </div>
+
+    <script>
+        // Set today's date automatically
+        document.getElementById('setDate').valueAsDate = new Date();
+        
+        let products = [];
+
+        // Update Store settings on the bill live
+        function updateBill() {
+            document.getElementById('billStoreName').innerText = document.getElementById('setStoreName').value || 'Store Name';
+            document.getElementById('billGst').innerText = document.getElementById('setGst').value || 'N/A';
+            
+            // Format Date
+            let dateVal = document.getElementById('setDate').value;
+            if(dateVal) {
+                let dateObj = new Date(dateVal);
+                document.getElementById('billDate').innerText = dateObj.toLocaleDateString();
+            }
+        }
+
+        // Add Product to the array
+        function addProduct() {
+            let name = document.getElementById('prodName').value;
+            let price = parseFloat(document.getElementById('prodPrice').value);
+            let discount = parseFloat(document.getElementById('prodDiscount').value) || 0;
+
+            if (!name || isNaN(price) || price <= 0) {
+                alert("Please enter a valid product name and price.");
+                return;
+            }
+
+            let discountAmount = price * (discount / 100);
+            let finalPrice = price - discountAmount;
+
+            products.push({
+                name: name,
+                price: price,
+                discountPercent: discount,
+                discountAmount: discountAmount,
+                finalPrice: finalPrice
+            });
+
+            // Clear inputs
+            document.getElementById('prodName').value = '';
+            document.getElementById('prodPrice').value = '';
+            document.getElementById('prodDiscount').value = '';
+
+            renderTable();
+        }
+
+        // Remove Product
+        function removeProduct(index) {
+            products.splice(index, 1);
+            renderTable();
+        }
+
+        // Draw the table and calculate totals
+        function renderTable() {
+            let tbody = document.getElementById('billTableBody');
+            tbody.innerHTML = '';
+
+            let subtotal = 0;
+            let totalDiscount = 0;
+            let grandTotal = 0;
+
+            products.forEach((prod, index) => {
+                subtotal += prod.price;
+                totalDiscount += prod.discountAmount;
+                grandTotal += prod.finalPrice;
+
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${prod.name}</td>
+                    <td class="text-right">₹${prod.price.toFixed(2)}</td>
+                    <td class="text-right">${prod.discountPercent}%</td>
+                    <td class="text-right">₹${prod.finalPrice.toFixed(2)}</td>
+                    <td class="hide-on-print text-right"><span class="delete-btn" onclick="removeProduct(${index})">&times;</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Update Totals
+            document.getElementById('billSubtotal').innerText = `₹${subtotal.toFixed(2)}`;
+            document.getElementById('billTotalDiscount').innerText = `-₹${totalDiscount.toFixed(2)}`;
+            document.getElementById('billGrandTotal').innerText = `₹${grandTotal.toFixed(2)}`;
+        }
+
+        // Initialize the bill settings on page load
+        updateBill();
+    </script>
+</body>
+</html>
